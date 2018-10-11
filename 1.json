@@ -65,31 +65,30 @@
         "description": "Default Admin password"
       }
     },
-    "virtualMachineName1":{
+    "virtualMachineName1": {
       "type": "string",
       "defaultValue": "tstest01",
       "metadata": {
-        "description":"Name of the VM"
+        "description": "Name of the VM"
       }
     },
-    "virtualMachineName2":{
+    "virtualMachineName2": {
       "type": "string",
       "defaultValue": "tstest02",
       "metadata": {
-        "description":"Name of the VM"
+        "description": "Name of the VM"
       }
     }
   },
   "variables": {
-
     "vm1-nic": "[concat(parameters('virtualMachineName1'),'-nic1')]",
     "vm2-nic": "[concat(parameters('virtualMachineName2'),'-nic1')]",
     "VirtualMachineSize": "Standard_DS2_v2",
     "imagePublisher": "Canonical",
     "imageOffer": "UbuntuServer",
     "ubuntuOSVersion": "18.04-LTS",
-    "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('Subnet1Name'))]"
-
+    "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('Subnet1Name'))]",
+    "subnetRef2": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('Subnet2Name'))]"
   },
   "resources": [
     {
@@ -125,8 +124,6 @@
       "name": "[variables('vm1-nic')]",
       "location": "[parameters('location')]",
       "dependsOn": [
-       
-        "[resourceId('Microsoft.Network/virtualNetworks/', parameters('vnetName'))]"
       ],
       "properties": {
         "ipConfigurations": [
@@ -183,8 +180,84 @@
           ]
         }
       }
+    },
+    {
+      "apiVersion": "2017-05-10",
+      "name": "nestedTemplate",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "apiVersion": "2017-06-01",
+              "type": "Microsoft.Network/networkInterfaces",
+              "name": "[variables('vm2-nic')]",
+              "location": "[parameters('location')]",
+              "dependsOn": [
+                
+              ],
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "subnet": {
+                        "id": "[variables('subnetRef2')]"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "[parameters('virtualMachineName2')]",
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2017-03-30",
+              "location": "[parameters('location')]",
+              "comments": "This is the virtual machine that you're building.",
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces/', variables('vm2-nic'))]"
+              ],
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "[variables('VirtualMachineSize')]"
+                },
+                "osProfile": {
+                  "computerName": "[parameters('VirtualMachineName2')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "[variables('imagePublisher')]",
+                    "offer": "[variables('imageOffer')]",
+                    "sku": "[variables('ubuntuOSVersion')]",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "createOption": "FromImage",
+                    "name": "[concat(parameters('virtualMachineName2'),'-sda2')]"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "properties": {
+                        "primary": true
+                      },
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('vm2-nic'))]"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
     }
-    ]
-  }
-    
-    
+  ]
+}
