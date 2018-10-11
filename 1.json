@@ -120,7 +120,7 @@
       }
     },
     {
-      "apiVersion": "2017-04-01",
+      "apiVersion": "2017-06-01",
       "type": "Microsoft.Network/networkInterfaces",
       "name": "[variables('vm1-nic')]",
       "location": "[parameters('location')]",
@@ -183,87 +183,7 @@
           ]
         }
       }
-    },
-    {
-      "apiVersion": "2017-05-10",
-      "name": "linkedTemplate",
-      "type": "Microsoft.Resources/deployments",
-      "properties": {
-          "mode": "Incremental",
-          "template":{
-            "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-            "contentVersion": "1.0.0.0",
-            "resources": [
-              
-              {
-                "apiVersion": "2017-04-01",
-                "type": "Microsoft.Network/networkInterfaces",
-                "name": "[variables('vm2-nic')]",
-                "location": "[parameters('location')]",
-                "dependsOn": [
-                 
-                  "[resourceId('Microsoft.Network/virtualNetworks/', parameters('vnetName'))]"
-                ],
-                "properties": {
-                  "ipConfigurations": [
-                    {
-                      "name": "ipconfig1",
-                      "properties": {
-                        "privateIPAllocationMethod": "Dynamic",
-                        "subnet": {
-                          "id": "[variables('subnetRef')]"
-                        }
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "name": "[parameters('virtualMachineName1')]",
-                "type": "Microsoft.Compute/virtualMachines",
-                "apiVersion": "2017-03-30",
-                "location": "[parameters('location')]",
-                "comments": "This is the virtual machine that you're building.",
-                "dependsOn": [
-                  "[resourceId('Microsoft.Network/networkInterfaces/', variables('vm2-nic'))]"
-                ],
-                "properties": {
-                  "hardwareProfile": {
-                    "vmSize": "[variables('VirtualMachineSize')]"
-                  },
-                  "osProfile": {
-                    "computerName": "[parameters('VirtualMachineName2')]",
-                    "adminUsername": "[parameters('adminUsername')]",
-                    "adminPassword": "[parameters('adminPassword')]"
-                  },
-                  "storageProfile": {
-                    "imageReference": {
-                      "publisher": "[variables('imagePublisher')]",
-                      "offer": "[variables('imageOffer')]",
-                      "sku": "[variables('ubuntuOSVersion')]",
-                      "version": "latest"
-                    },
-                    "osDisk": {
-                      "createOption": "FromImage",
-                      "name": "[concat(parameters('virtualMachineName1'),'-sda1')]"
-                    }
-                  },
-                  "networkProfile": {
-                    "networkInterfaces": [
-                      {
-                        "properties": {
-                          "primary": true
-                        },
-                        "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('vm2-nic'))]"
-                      }
-                    ]
-                  }
-                }
-              }
-            ]
-          } 
-        } 
-      }
+    }
     ]
   }
     
