@@ -1,0 +1,318 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "vnetName": {
+        "type": "string",
+        "defaultValue": "az-vnet-chmurowisko-01",
+        "metadata": {
+          "description": "VNet name"
+        }
+      },
+      "vnetAddressPrefix": {
+        "type": "string",
+        "defaultValue": "10.1.0.0/16",
+        "metadata": {
+          "description": "Address prefix"
+        }
+      },
+      "subnet1Prefix": {
+        "type": "string",
+        "defaultValue": "10.1.1.0/24",
+        "metadata": {
+          "description": "Subnet 1 Prefix"
+        }
+      },
+      "subnet1Name": {
+        "type": "string",
+        "defaultValue": "az-subnet-chmurowisko-01",
+        "metadata": {
+          "description": "Subnet 1 Name"
+        }
+      },
+      "subnet2Prefix": {
+        "type": "string",
+        "defaultValue": "10.1.2.0/24",
+        "metadata": {
+          "description": "Subnet 2 Prefix"
+        }
+      },
+      "subnet2Name": {
+        "type": "string",
+        "defaultValue": "az-subnet-chmurowisko-02",
+        "metadata": {
+          "description": "Subnet 2 Name"
+        }
+      },
+      "location": {
+        "type": "string",
+        "defaultValue": "[resourceGroup().location]",
+        "metadata": {
+          "description": "Location for all resources."
+        }
+      },
+      "adminUsername": {
+        "type": "string",
+        "defaultValue": "mcadmin",
+        "metadata": {
+          "description": "Default Admin username"
+        }
+      },
+      "adminPassword": {
+        "type": "securestring",
+        "defaultValue": null,
+        "metadata": {
+          "description": "Default Admin password"
+        }
+      },
+      "virtualMachineName1": {
+        "type": "string",
+        "defaultValue": "tstest01",
+        "metadata": {
+          "description": "Name of the VM"
+        }
+      },
+      "virtualMachineName2": {
+        "type": "string",
+        "defaultValue": "tstest02",
+        "metadata": {
+          "description": "Name of the VM"
+        }
+      }
+    },
+    "variables": {
+      "vm1-nic": "[concat(parameters('virtualMachineName1'),'-nic1')]",
+      "vm2-nic": "[concat(parameters('virtualMachineName2'),'-nic1')]",
+      "VirtualMachineSize": "Standard_DS2_v2",
+      "imagePublisher": "Canonical",
+      "imageOffer": "UbuntuServer",
+      "ubuntuOSVersion": "18.04-LTS",
+      "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('Subnet1Name'))]",
+      "subnetRef2": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('Subnet2Name'))]",
+      "nsgName": "az-nsg-default"
+      
+  
+    },
+    "resources": [
+      {
+        "apiVersion": "2017-05-10",
+        "name": "nsgdeploy",
+        "type": "Microsoft.Resources/deployments",
+        "properties": {
+          "mode": "Incremental",
+          "template": {
+            "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+            "contentVersion": "1.0.0.0",
+            "resources": [
+              {
+                  "name": "[variables('nsgName')]",
+                  "type": "Microsoft.Network/networkSecurityGroups",
+                  "apiVersion": "2018-08-01",
+                  "location": "[resourceGroup().location]",
+                  "properties": {
+                      "securityRules": [
+                          {
+                              "name": "AllowHttp",
+                              "properties": {
+                                  "sourceAddressPrefix": "*",
+                                  "sourcePortRange": "*",
+                                  "direction": "Inbound",
+                                  "access": "Allow",
+                                  "priority": 100,
+                                  "protocol": "Tcp",
+                                  "destinationAddressPrefix": "*",
+                                  "destinationPortRange": "80"
+                              }
+                          },
+                          {
+                              "name": "AllowSSH",
+                              "properties": {
+                                  "sourceAddressPrefix": "*",
+                                  "sourcePortRange": "*",
+                                  "direction": "Inbound",
+                                  "access": "Allow",
+                                  "priority": 200,
+                                  "protocol": "Tcp",
+                                  "destinationAddressPrefix": "*",
+                                  "destinationPortRange": "22"
+                              }
+                          }
+                      ]
+                  }
+              }
+          ]
+          }
+        }
+      },
+  
+      {
+        "apiVersion": "2015-06-15",
+        "type": "Microsoft.Network/virtualNetworks",
+        "name": "[parameters('vnetName')]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[concat('Microsoft.Resources/deployments/','nsgdeploy')]"
+        ],
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[parameters('vnetAddressPrefix')]"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[parameters('subnet1Name')]",
+              "properties": {
+                "addressPrefix": "[parameters('subnet1Prefix')]",
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                
+              }
+            }
+          },
+            {
+              "name": "[parameters('subnet2Name')]",
+              "properties": {
+                "addressPrefix": "[parameters('subnet2Prefix')]",
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+                
+              }
+            }
+          }
+          ]
+        }
+      },
+      {
+        "apiVersion": "2017-06-01",
+        "type": "Microsoft.Network/networkInterfaces",
+        "name": "[variables('vm1-nic')]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+        ],
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "privateIPAllocationMethod": "Dynamic",
+                "subnet": {
+                  "id": "[variables('subnetRef')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "apiVersion": "2017-06-01",
+        "type": "Microsoft.Network/networkInterfaces",
+        "name": "[variables('vm2-nic')]",
+        "location": "[parameters('location')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
+        ],
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig1",
+              "properties": {
+                "privateIPAllocationMethod": "Dynamic",
+                "subnet": {
+                  "id": "[variables('subnetRef2')]"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "[parameters('virtualMachineName1')]",
+        "type": "Microsoft.Compute/virtualMachines",
+        "apiVersion": "2017-03-30",
+        "location": "[parameters('location')]",
+        "comments": "This is the virtual machine that you're building.",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/networkInterfaces/', variables('vm1-nic'))]"
+        ],
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "[variables('VirtualMachineSize')]"
+          },
+          "osProfile": {
+            "computerName": "[parameters('VirtualMachineName1')]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "adminPassword": "[parameters('adminPassword')]"
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "[variables('imagePublisher')]",
+              "offer": "[variables('imageOffer')]",
+              "sku": "[variables('ubuntuOSVersion')]",
+              "version": "latest"
+            },
+            "osDisk": {
+              "createOption": "FromImage",
+              "name": "[concat(parameters('virtualMachineName1'),'-sda1')]"
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "properties": {
+                  "primary": true
+                },
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('vm1-nic'))]"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "name": "[parameters('virtualMachineName2')]",
+        "type": "Microsoft.Compute/virtualMachines",
+        "apiVersion": "2017-03-30",
+        "location": "[parameters('location')]",
+        "comments": "This is the virtual machine that you're building.",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/networkInterfaces/', variables('vm2-nic'))]"
+        ],
+        "properties": {
+          "hardwareProfile": {
+            "vmSize": "[variables('VirtualMachineSize')]"
+          },
+          "osProfile": {
+            "computerName": "[parameters('VirtualMachineName2')]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "adminPassword": "[parameters('adminPassword')]"
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "[variables('imagePublisher')]",
+              "offer": "[variables('imageOffer')]",
+              "sku": "[variables('ubuntuOSVersion')]",
+              "version": "latest"
+            },
+            "osDisk": {
+              "createOption": "FromImage",
+              "name": "[concat(parameters('virtualMachineName2'),'-sda1')]"
+            }
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "properties": {
+                  "primary": true
+                },
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('vm2-nic'))]"
+              }
+            ]
+          }
+        }
+      }
+  
+      
+      
+    ]
+  }
