@@ -84,3 +84,4 @@ role-create.json
 ## Zadanie 3.4
 
 N/A
+# VMSS
